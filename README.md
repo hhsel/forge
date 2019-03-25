@@ -56,3 +56,36 @@ and execute this script
 ```bash
 node kms.js | openssl x509 -noout -text
 ```
+
+## Generate a X.509 client certificate with a Cloud KMS private asymmetric key
+```js
+const clientPublicKeyPem = "<PEM public key generated with openssl command here>"
+const caCertPem = "<generated PEM above here>" 
+
+const kmsKey = {projectId: PROJECT_ID, keyRing: KEY_RING, keyName: KEY_NAME}
+const clientInfo = [{
+  name: "commonName",
+  value: "testingsubject"
+}, {
+  name: "countryName",
+  value: "JP"
+}];
+const cert = forge.pki.createCertificate()
+const cacert = forge.pki.certificateFromPem(caCertPem)
+
+cert.serialNumber = "02"
+cert.validity.notBefore = new Date()
+cert.validity.notAfter = new Date()
+cert.validity.notAfter.setFullYear(cert.validity.notBefore.getFullYear() + 100)
+cert.setIssuer(cacert.issuer.attributes)
+cert.setSubject(clientInfo)
+cert.publicKey = clientPublicKeyPem
+
+cert.signByCloudKms(kmsKey)
+.then(() => {
+	const certPem = forge.pki.certificateToPem(cert)
+	console.log(cert)
+	cacert.verify(cert) // this would raise no errors
+})
+.catch(e => console.error(e))
+```
